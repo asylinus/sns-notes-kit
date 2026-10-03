@@ -36,6 +36,21 @@ class Entry:
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
 
 
+HTML_MSG = (
+    "This zip is an HTML export, but snsnotes reads JSON only. Please export again and choose "
+    "format JSON (and date range 'All time'). / "
+    "이 zip은 HTML 형식으로 내보낸 파일입니다. 이 도구는 JSON만 읽습니다. "
+    "인스타그램에서 형식을 JSON, 기간을 '전체 기간'으로 바꿔 다시 내보내세요."
+)
+
+
+def is_html_export(names) -> bool:
+    """True if the zip looks like a Meta export in HTML format (many .html, no .json)."""
+    html = sum(1 for n in names if n.lower().endswith((".html", ".htm")))
+    js = sum(1 for n in names if n.lower().endswith(".json"))
+    return html > 0 and js == 0
+
+
 def fix_mojibake(s: str) -> str:
     """Meta writes UTF-8 bytes as latin1 escapes; undo that. Leave already-correct text alone."""
     try:
@@ -111,6 +126,8 @@ def read_export(zip_path, tz: dt.tzinfo) -> tuple[list[Entry], list[str]]:
             warnings.append("No Instagram posts file found (posts_N.json) - skipped.")
         if not thread_files:
             warnings.append("No Threads file found (threads_and_replies.json) - skipped.")
+        if not post_files and not thread_files and is_html_export(names):
+            raise ExportError(HTML_MSG)
         if not post_files and not thread_files:
             raise ExportError(
                 "This zip does not look like an Instagram/Threads JSON export. "

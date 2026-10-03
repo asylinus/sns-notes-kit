@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import zipfile
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 from . import __version__
-from .core import ExportError, parse_tz, read_export
+from .core import HTML_MSG, ExportError, is_html_export, parse_tz, read_export
+from .taste import has_taste_files, known_usernames, read_taste, taste_stats, write_taste, write_taste_bundle
 from .privacy import scan_text
 from .writers import DEFAULT_MAX_CHARS, write_bundle, write_notes
 
@@ -18,7 +20,7 @@ LABELS = {
 }
 
 
-def build_report(entries, account="") -> str:
+def build_report(entries, account="", taste=None) -> str:
     totals = dict.fromkeys(LABELS, 0)
     dates = defaultdict(list)
     for e in entries:
@@ -37,7 +39,13 @@ def build_report(entries, account="") -> str:
         lines.append(f"## {label}: {totals[k]}")
         lines += [f"- {d}" for d in dates[k]] or ["- none"]
         lines.append("")
-    lines.append("Tip: re-run with --redact to mask phones/emails/accounts in notes and bundles.")
+    if taste is not None:
+        st = taste_stats(taste)
+        lines.append(f"## Taste (saved / liked): {st['total']} entries, {st['collections']} collections")
+        lines += [f"- {k}: {n}" for k, n in sorted(st["kinds"].items())] or ["- none"]
+        lines.append("- by year: " + (", ".join(f"{y}: {n}" for y, n in st["years"].items()) or "none"))
+        lines.append("")
+    lines.append("Note: phones/emails/accounts are masked by default in notes, bundles and taste notes (use --no-redact to turn off).")
     return "\n".join(lines) + "\n"
 
 
@@ -49,7 +57,8 @@ def _common(p, out_required=True, out_help="output folder"):
 
 
 def _redact_flag(p):
-    p.add_argument("--redact", action="store_true", help="mask phones/emails/account numbers")
+    p.add_argument("--no-redact", action="store_true", help="do NOT mask phones/emails/account numbers/@mentions (masking is on by default)")
+    p.add_argument("--redact", action="store_true", help=argparse.SUPPRESS)  # kept for old scripts (now the default)
 
 
 def parser():
@@ -66,11 +75,17 @@ def parser():
     _common(p)
     _redact_flag(p)
     p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS, help="max chars per file")
+    p = sub.add_parser("taste", help="notes for saved posts, likes and collections (other people's names are hashed)")
+    _common(p)
+    _redact_flag(p)
+    p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
     p = sub.add_parser("scan", help="privacy pre-check report (no values)")
     _common(p, out_required=False, out_help="also save report to this file")
-    p = sub.add_parser("all", help="notes + bundle + scan report")
+    p.add_argument("--no-taste", action="store_true", help="skip saved/liked counts")
+    p = sub.add_parser("all", help="notes + bundle + taste + scan report")
     _common(p, out_required=False, out_help="output folder (default: next to the zip)")
     _redact_flag(p)
+    p.add_argument("--no-taste", action="store_true", help="skip saved/liked/collections notes")
     p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
     return ap
 
@@ -99,34 +114,75 @@ def main(argv=None) -> int:
         return 2
 
 
+def _zip_names(path):
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return zf.namelist()
+    except (OSError, zipfile.BadZipFile):
+        return []
+
+
+def _taste(a, strict=False):
+    """Read taste records. strict=True (taste command): a zip without saved/liked files is an error."""
+    if not has_taste_files(a.zip):
+        if strict:
+            if is_html_export(_zip_names(a.zip)):
+                raise ExportError(HTML_MSG)
+            raise ExportError("No saved/liked files found (saved_posts.json, liked_posts.json ...). Was this a JSON export that includes 'Saved' and 'Likes'?")
+        return None
+    recs, warns = read_taste(a.zip, parse_tz(a.tz))
+    for w in warns:
+        print(f"Warning: {w}", file=sys.stderr)
+    return recs
+
+
 def _run(a) -> int:
+    redact = not getattr(a, "no_redact", False)
+    use_taste = a.cmd == "taste" or (a.cmd in ("all", "scan") and not getattr(a, "no_taste", False))
+    if a.cmd == "taste":
+        base = Path(a.out)
+        recs = _taste(a, strict=True)
+        w, sk = write_taste(recs, base / "taste", redact)
+        print(f"taste: {w} written, {sk} skipped (already exist) -> {base / 'taste'}")
+        files = write_taste_bundle(recs, base / "nlm", redact, a.max_chars)
+        print(f"taste bundle: {len(files)} files -> {base / 'nlm'}")
+        return 0
     try:
         entries, warnings = read_export(a.zip, parse_tz(a.tz))
     except ExportError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 2
+        if use_taste and has_taste_files(a.zip) and "does not look like" in str(e):
+            entries, warnings = [], []  # saved/liked-only export
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+            return 2
     for w in warnings:
         print(f"Warning: {w}", file=sys.stderr)
-    redact = getattr(a, "redact", False)
+    recs = _taste(a) if use_taste else None
 
     if a.cmd == "scan":
-        report = build_report(entries, a.account)
+        report = build_report(entries, a.account, recs)
         print(report)
         if a.out:
             Path(a.out).write_text(report, encoding="utf-8")
         return 0
 
+    known = known_usernames(recs) if (recs and redact) else frozenset()
     base = Path(a.out) if a.out else Path(a.zip).with_name(Path(a.zip).stem + "_snsnotes")
     if a.cmd in ("notes", "all"):
         dest = base / "notes" if a.cmd == "all" else base
-        w, s = write_notes(entries, dest, redact, a.account)
+        w, s = write_notes(entries, dest, redact, a.account, known)
         print(f"notes: {w} written, {s} skipped (already exist) -> {dest}")
     if a.cmd in ("bundle", "all"):
         dest = base / "nlm" if a.cmd == "all" else base
-        files = write_bundle(entries, dest, redact, a.max_chars)
+        files = write_bundle(entries, dest, redact, a.max_chars, a.account, known)
         print(f"bundle: {len(files)} files -> {dest}")
     if a.cmd == "all":
+        if recs is not None:
+            w, sk = write_taste(recs, base / "taste", redact)
+            print(f"taste: {w} written, {sk} skipped (already exist) -> {base / 'taste'}")
+            files = write_taste_bundle(recs, base / "nlm", redact, a.max_chars)
+            print(f"taste bundle: {len(files)} files -> {base / 'nlm'}")
         base.mkdir(parents=True, exist_ok=True)
-        (base / "scan_report.md").write_text(build_report(entries, a.account), encoding="utf-8")
+        (base / "scan_report.md").write_text(build_report(entries, a.account, recs), encoding="utf-8")
         print(f"scan report -> {base / 'scan_report.md'}")
     return 0

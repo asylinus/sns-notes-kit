@@ -5,7 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from .core import Entry
-from .privacy import redact
+from .privacy import mask_mentions, redact, scrub_known
 
 DEFAULT_MAX_CHARS = 400_000
 
@@ -14,7 +14,7 @@ def _q(v) -> str:
     return json.dumps(v, ensure_ascii=False)
 
 
-def write_notes(entries: list[Entry], out: Path, do_redact=False, account="") -> tuple[int, int]:
+def write_notes(entries: list[Entry], out: Path, do_redact=False, account="", known=frozenset()) -> tuple[int, int]:
     """Returns (written, skipped). Existing notes with the same sha8 are skipped."""
     out = Path(out)
     existing = {p.stem.rsplit("_", 1)[-1] for p in out.rglob("*.md")} if out.exists() else set()
@@ -23,7 +23,7 @@ def write_notes(entries: list[Entry], out: Path, do_redact=False, account="") ->
         if e.sha8 in existing:
             skipped += 1
             continue
-        text = redact(e.text) if do_redact else e.text
+        text = scrub_known(mask_mentions(redact(e.text), account), known) if do_redact else e.text
         fm = ["---", f"source: {_q(e.source)}"]
         if account:
             fm.append(f"account: {_q(account)}")
@@ -45,13 +45,13 @@ def write_notes(entries: list[Entry], out: Path, do_redact=False, account="") ->
     return written, skipped
 
 
-def _block(e: Entry, do_redact: bool) -> str:
+def _block(e: Entry, do_redact: bool, account: str = "", known=frozenset()) -> str:
     media = f" [media {len(e.media)}]" if e.media else ""
-    text = redact(e.text) if do_redact else e.text
+    text = scrub_known(mask_mentions(redact(e.text), account), known) if do_redact else e.text
     return f"## {e.when:%Y-%m-%d %H:%M} | {e.kind}{media}\n{text}\n\n"
 
 
-def write_bundle(entries: list[Entry], out: Path, do_redact=False, max_chars=DEFAULT_MAX_CHARS) -> list[Path]:
+def write_bundle(entries: list[Entry], out: Path, do_redact=False, max_chars=DEFAULT_MAX_CHARS, account="", known=frozenset()) -> list[Path]:
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     groups: dict[tuple[str, int], list[Entry]] = defaultdict(list)
@@ -64,7 +64,7 @@ def write_bundle(entries: list[Entry], out: Path, do_redact=False, max_chars=DEF
         size = 0
         budget = max_chars - 200  # room for header
         for e in es:
-            b = _block(e, do_redact)
+            b = _block(e, do_redact, account, known)
             if parts[-1] and size + len(b) > budget:
                 parts.append([])
                 size = 0
