@@ -24,7 +24,6 @@ if "%~1"=="" goto done
 echo.
 echo === %~nx1 ===
 %PY% -m snsnotes all "%~1"
-%PY% -m snsnotes scan "%~1"
 shift
 goto next
 :done

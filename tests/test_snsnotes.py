@@ -1,4 +1,5 @@
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -64,6 +65,44 @@ class TestRead(Base):
     def test_bad_timezone(self):
         with self.assertRaises(ExportError):
             parse_tz("Nowhere/Land")
+
+    def test_exact_duplicates_merged_with_notice(self):
+        z = self.tmp / "dup.zip"
+        item = {"media": [{"uri": "", "creation_timestamp": 1700010176, "title": "same text",
+                           "text_app_post": {"is_reply": True}}]}
+        with zipfile.ZipFile(z, "w") as f:
+            f.writestr("your_instagram_activity/threads/threads_and_replies.json",
+                       json.dumps({"text_post_app_text_posts": [item, item]}))
+        entries, warns = read_export(z, KST)
+        self.assertEqual(len(entries), 1)
+        self.assertTrue(any("1 exact duplicate entry" in w for w in warns))
+
+    def test_zip_bomb_json_skipped(self):
+        from snsnotes import core
+        z = self.tmp / "bomb.zip"
+        with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as f:
+            f.writestr("your_instagram_activity/media/posts_1.json", "[" + " " * (5 * 1024 * 1024) + "]")
+            f.writestr("your_instagram_activity/threads/threads_and_replies.json",
+                       json.dumps({"text_post_app_text_posts": []}))
+        entries, warns = read_export(z, KST)
+        self.assertEqual(entries, [])
+        self.assertTrue(any("zip bomb" in w for w in warns))
+
+    def test_truncated_zip_message(self):
+        z = self.tmp / "t.zip"
+        z.write_bytes(self.zip.read_bytes()[:50])
+        with self.assertRaises(ExportError) as c:
+            read_export(z, KST)
+        self.assertIn("download", str(c.exception))
+
+    def test_unwritable_output_is_friendly(self):
+        blocker = self.tmp / "afile"
+        blocker.write_text("x")
+        err = io.StringIO()
+        with redirect_stderr(err), redirect_stdout(io.StringIO()):
+            rc = cli.main(["notes", str(self.zip), "-o", str(blocker / "sub")])
+        self.assertEqual(rc, 2)
+        self.assertIn("could not write", err.getvalue())
 
 
 class TestNotes(Base):

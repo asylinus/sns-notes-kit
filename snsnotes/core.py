@@ -1,4 +1,5 @@
 """Read a Meta (Instagram/Threads) JSON export zip directly, without extracting."""
+from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
@@ -9,6 +10,9 @@ from pathlib import Path
 
 POSTS_RE = re.compile(r"(^|/)(your_instagram_activity/media|content)/posts_\d+\.json$")
 THREADS_RE = re.compile(r"(^|/)threads/threads_and_replies(_\d+)?\.json$")
+
+MAX_JSON_BYTES = 500 * 1024 * 1024  # refuse absurdly large JSON entries (zip bomb guard)
+MAX_RATIO = 1000  # uncompressed/compressed ratio above this is suspicious
 
 _TZ_ALIASES = {"KST": 9, "UTC": 0, "GMT": 0, "JST": 9}
 
@@ -92,8 +96,13 @@ def read_export(zip_path, tz: dt.tzinfo) -> tuple[list[Entry], list[str]]:
     try:
         zf = zipfile.ZipFile(zip_path)
     except zipfile.BadZipFile:
-        raise ExportError(f"Not a valid zip file: {zip_path.name}")
+        raise ExportError(
+            f"Not a valid zip file: {zip_path.name}. The download may be incomplete - try downloading it again."
+        )
+    except OSError as e:
+        raise ExportError(f"Cannot open {zip_path.name}: {e.strerror or e}")
     out: dict[tuple[str, str], Entry] = {}
+    dupes = 0
     with zf:
         names = sorted(zf.namelist())
         post_files = [n for n in names if POSTS_RE.search(n)]
@@ -109,12 +118,26 @@ def read_export(zip_path, tz: dt.tzinfo) -> tuple[list[Entry], list[str]]:
             )
         for source, files in (("instagram", post_files), ("threads", thread_files)):
             for n in files:
+                info = zf.getinfo(n)
+                if info.file_size > MAX_JSON_BYTES or (
+                    info.compress_size and info.file_size / info.compress_size > MAX_RATIO
+                ):
+                    warnings.append(f"Skipped {n}: unusually large or highly compressed (possible zip bomb).")
+                    continue
                 try:
                     data = json.loads(zf.read(n).decode("utf-8"))
-                except (ValueError, KeyError) as e:
+                except (ValueError, KeyError, RuntimeError, zipfile.BadZipFile) as e:
                     warnings.append(f"Could not read {n}: {e}")
                     continue
                 items = data.get("text_post_app_text_posts", []) if isinstance(data, dict) else data
                 for e in _entries(items, source, tz, zip_path.name):
-                    out.setdefault((e.source, e.sha8), e)
+                    if (e.source, e.sha8) in out:
+                        dupes += 1
+                    else:
+                        out[(e.source, e.sha8)] = e
+    if dupes:
+        warnings.append(
+            f"{dupes} exact duplicate entr{'y' if dupes == 1 else 'ies'} (same source, second and text) "
+            "found in the export and merged into one."
+        )
     return sorted(out.values(), key=lambda e: (e.when, e.source)), warnings

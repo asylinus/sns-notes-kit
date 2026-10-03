@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import sys
 from collections import defaultdict
@@ -79,7 +81,25 @@ def main(argv=None) -> int:
             s.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+    if sys.version_info < (3, 10):
+        print("Error: Python 3.10 or newer is required. Install it from https://www.python.org/downloads/", file=sys.stderr)
+        return 2
     a = parser().parse_args(argv)
+    try:
+        return _run(a)
+    except ExportError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 2
+    except OSError as e:
+        print(
+            f"Error: could not write files ({e.strerror or e}). Check that the output folder is writable "
+            "and the disk is not full. If your zip is in a read-only place, use -o <folder>.",
+            file=sys.stderr,
+        )
+        return 2
+
+
+def _run(a) -> int:
     try:
         entries, warnings = read_export(a.zip, parse_tz(a.tz))
     except ExportError as e:

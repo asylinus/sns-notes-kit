@@ -1,4 +1,5 @@
 """Pattern detection / masking for phones, emails, bank-account-like numbers, @mentions."""
+from __future__ import annotations
 import re
 
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
