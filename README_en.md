@@ -57,7 +57,7 @@ python -m snsnotes taste  export.zip -o out/   [--no-redact]   # saved / liked /
 python -m snsnotes all    export.zip [-o dir]  [--no-redact] [--no-taste]
 ```
 
-**Redaction is on by default** (phones, emails, bank-account-like numbers; @mentions of other people become `@someone`, your own `--account` handle is kept; in taste notes account names seen anywhere in the export are also scrubbed from captions and hashtags). Use `--no-redact` to keep the original text.
+**Redaction is on by default** (phones, emails, bank-account-like numbers; @mentions of other people become `@someone`, your own `--account` handle is kept; in taste notes account names seen anywhere in the export are also scrubbed from captions; **hashtags are kept** as public topic words). Use `--no-redact` to keep the original text.
 
 ### Taste notes (saved, likes, collections)
 

@@ -40,7 +40,12 @@ def scrub_known(text: str, known) -> str:
     """Replace whole words that equal a known other-person username with 'someone'."""
     if not known or not text:
         return text
-    return _WORD.sub(lambda m: "someone" if m.group(0).lower().strip(".-") in known else m.group(0), text)
+    def rep(m):
+        # keep hashtags (#word): they are public topic words, not a person's handle
+        if m.start() > 0 and text[m.start() - 1] == "#":
+            return m.group(0)
+        return "someone" if m.group(0).lower().strip(".-") in known else m.group(0)
+    return _WORD.sub(rep, text)
 
 
 def scan_text(text: str, own_account: str = "") -> dict[str, int]:

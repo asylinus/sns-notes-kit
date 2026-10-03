@@ -301,9 +301,9 @@ def known_usernames(recs) -> frozenset:
 
 
 def clean_hashtags(t: Taste, do_redact: bool, known=frozenset()) -> list:
-    if not do_redact:
-        return t.hashtags
-    return [h for h in t.hashtags if h.lower().lstrip("#") not in known]
+    # Hashtags are kept as-is even when redacting: they are public topic words (taste signal),
+    # not personal data. Only @mentions and author names are hidden.
+    return t.hashtags
 
 
 def clean_caption(t: Taste, do_redact: bool, known=frozenset()) -> str:

@@ -136,7 +136,11 @@ class TestScrub(Base):
         known = known_usernames([a, b])
         self.assertNotIn("loft_interior", clean_caption(b, True, known).lower())
         self.assertIn("cafe", clean_caption(b, True, known))
-        self.assertEqual(clean_hashtags(b, True, known), ["cafe"])
+        self.assertEqual(clean_hashtags(b, True, known), ["Loft_Interior", "cafe"])  # hashtags kept
+        c = Taste(kind="saved", key="c", caption="loved it #loft_interior by loft_interior", hashtags=[])
+        out = clean_caption(c, True, known)
+        self.assertIn("#loft_interior", out)          # hashtag in caption kept
+        self.assertNotIn(" by loft_interior", out)    # bare handle still hidden
         self.assertIn("loft_interior", clean_caption(b, False, known))
 
 
