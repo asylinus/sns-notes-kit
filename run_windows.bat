@@ -14,6 +14,18 @@ if not defined PY (
   pause
   exit /b 1
 )
+rem Run without a console window when possible (pyw/pythonw); errors pop up as a message box and go to %USERPROFILE%\.snsnotes\wizard.log
+set "PYW="
+where pyw >nul 2>nul && set "PYW=pyw -3"
+if not defined PYW (where pythonw >nul 2>nul && set "PYW=pythonw")
+if defined PYW (
+  if "%~1"=="" (
+    start "" %PYW% -m snsnotes wizard
+  ) else (
+    start "" %PYW% -m snsnotes wizard --zip "%~1"
+  )
+  exit /b 0
+)
 if "%~1"=="" (
   %PY% -m snsnotes wizard
 ) else (
