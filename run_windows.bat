@@ -10,7 +10,7 @@ where py >nul 2>nul && set "PY=py -3"
 if not defined PY (where python >nul 2>nul && set "PY=python")
 if not defined PY (
   echo [ERROR] Python 3.10+ is not installed. Get it from https://www.python.org/downloads/ ^(check "Add python.exe to PATH"^).
-  echo [오류] 파이썬이 설치되어 있지 않습니다. README_ko.md 의 1단계를 보세요.
+  echo [오류] 파이썬이 설치되어 있지 않습니다. README.md 의 1단계를 보세요.
   pause
   exit /b 1
 )

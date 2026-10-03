@@ -1,91 +1,120 @@
-# snsnotes
+# 내 인스타·스레드 글을 노트로 만들기 (snsnotes)
 
-<img src="docs/img/wizard_1_start.png" width="320"> <img src="docs/img/wizard_6_check.png" width="320">
+[English](README_en.md) · 무료 · MIT · 내 PC 안에서만
 
-Turn **your own** Instagram / Threads data export into:
+<img src="docs/img/cover.png" width="420">
 
-- one Markdown note per post (frontmatter + original text), and
-- NotebookLM-ready bundles (one file per source per year, auto-split under ~400k characters),
-- plus a privacy pre-check report (no values shown).
+**3줄 요약**
+1. 메타에서 내 정보를 **JSON**으로 내려받는다 (아래 2단계)
+2. 이 저장소를 받아 `run_windows.bat`(Mac은 `run_mac.command`)을 더블클릭한다
+3. 마법사 9단계를 따라가면 노트·노트북LM 파일이 만들어진다 → 노트북LM에서 오디오 개요까지
 
-Python 3.10+, standard library only, **runs fully offline**. See [PRIVACY.md](PRIVACY.md). Korean guide: [README_ko.md](README_ko.md).
+**마법사 화면 (9단계)**
 
-## 1. Get your export
+<p>
+<img src="docs/img/step1.png" width="32%"> <img src="docs/img/step2.png" width="32%"> <img src="docs/img/step3.png" width="32%">
+<img src="docs/img/step4.png" width="32%"> <img src="docs/img/step5.png" width="32%"> <img src="docs/img/step6.png" width="32%">
+<img src="docs/img/step7.png" width="32%"> <img src="docs/img/step8.png" width="32%"> <img src="docs/img/step9.png" width="32%">
+</p>
 
-Instagram web (checked on the Korean UI; English names in parentheses are the usual equivalents):
+> 받는 법: 이 페이지 위쪽 초록 **Code** 버튼 → **Download ZIP** → 압축 풀기.
 
-1. Left menu, bottom: **More** > **Settings**.
-2. Top of Settings: **Accounts Center**.
-3. In Accounts Center, left side under **Account settings**: **Your information and permissions**.
-4. **Export your information** > **Create export**.
-5. **Choose profile**: pick your Instagram account.
-6. **Choose where to export**: **Export to device**. (If a screen asks which information to include, keep posts, saved, likes and Threads.)
-7. On the **Export confirmation** screen the defaults are date range *Last year* and format *HTML*. **Change them: date range *All time*, format *JSON*.** Media quality: any.
-8. **Start export**. Meta sends a notification email when it is ready; the download is only available for a limited time, so download it promptly. Do not unzip it.
+내 인스타그램 / 스레드 기록을 **내 컴퓨터 안에서만** 정리해 줍니다.
 
-If you export as HTML by mistake, snsnotes stops with a message asking you to export again as JSON.
+- 내가 쓴 글: 글 하나당 메모 파일 하나 (날짜·원문 포함)
+- **취향 노트(taste)**: 내가 저장·좋아요한 글과 컬렉션을 메모로 (아래 "취향 노트" 참고)
+- 노트북LM에 바로 올릴 수 있는 연도별 묶음 파일
+- 올리기 전에 개인정보가 있는지 알려주는 점검 보고서 (내용은 보여주지 않고, 개수와 글 날짜만 알려줍니다)
+
+인터넷으로 아무것도 보내지 않습니다. 자세한 내용은 [PRIVACY.md](PRIVACY.md)를 보세요.
+
+---
+
+## 1단계. 파이썬 설치 (처음 한 번만)
+
+1. https://www.python.org/downloads/ 에서 파이썬을 받아 설치합니다 (3.10 이상).
+2. **Windows**: 설치 첫 화면 아래의 **"Add python.exe to PATH"** 에 꼭 체크하세요.
 
 
-## 2. Run it (no install needed)
+이미 설치되어 있다면 건너뛰세요.
 
-- **Windows**: double-click `run_windows.bat` (or drag the zip onto it to pre-select it). A 9-step wizard opens in your browser.
-- **macOS**: same with `run_mac.command` (first time: `chmod +x run_mac.command`).
-- Command line: `python -m snsnotes wizard [--zip export.zip] [--no-browser] [--port N]`.
+## 2단계. 내 데이터 내려받기 (JSON 형식)
 
-The wizard binds to 127.0.0.1 only, makes no outgoing connections (no web fonts either), resumes where you left off (`~/.snsnotes/state.json`), and **stops by itself when you close the browser tab** (the page pings every 15 s; 45 s of silence ends it). Nothing runs in the background. Experimental NotebookLM automation: later.
+인스타그램 웹(컴퓨터 브라우저) 한국어 화면 기준입니다.
 
-Results appear next to the zip in `<zipname>_snsnotes/`: `notes/`, `nlm/`, `scan_report.md`.
+1. 왼쪽 메뉴 맨 아래 **더 보기** > **설정** 을 누릅니다.
+2. 설정 맨 위의 **계정 센터** 를 누릅니다.
+3. 계정 센터 왼쪽 **계정 설정** 아래의 **내 정보 및 권한** 을 누릅니다.
+4. **내 정보 내보내기** 를 누릅니다.
+5. **내보내기 만들기** 를 누릅니다.
+6. **프로필 선택** 에서 내 인스타그램 계정을 고릅니다.
+7. **내보낼 위치 선택** 에서 **기기로 내보내기** 를 고릅니다. (정보 유형을 고르는 화면이 나오면 게시물, 저장됨, 좋아요, Threads가 빠지지 않게 하세요.)
+8. **내보내기 확인** 화면에서 **기본값이 기간 "작년", 형식 "HTML"** 입니다. 반드시 바꾸세요.
+   - 기간: **전체 기간**
+   - 형식: **JSON**
+   - 미디어 품질: 아무거나 괜찮습니다 (이 도구는 사진·영상을 쓰지 않습니다).
+9. **내보내기 시작** 을 누릅니다.
 
-### Is this safe? (what you'll see)
-- **A black window flashes for a moment.** That's `run_windows.bat` starting Python without a console. Not malware. After that you only see the browser page.
-- **Windows SmartScreen ("Windows protected your PC") may appear** for files downloaded from the internet. Click *More info* → *Run anyway*, or check first:
-  - Open `run_windows.bat` in Notepad — about 20 lines that only run the code in the `snsnotes` folder (plain text, no installer, nothing hidden).
-  - **Turn off Wi-Fi and run it — it works the same.** Nothing is sent anywhere (only the "open Meta / NotebookLM" buttons need the internet).
-  - The wizard address `http://127.0.0.1:…` means "this computer only".
-  - Close the tab and it stops itself within a minute (`pythonw` disappears from Task Manager).
-- Errors show a message box and go to `%USERPROFILE%\.snsnotes\wizard.log`.
+준비되면 메타가 알림 메일을 보냅니다. 파일을 **받을 수 있는 기간에 제한**이 있으니 메일이 오면 바로 내려받으세요. 압축(zip)은 풀지 마세요.
 
-## 3. Command line
+> 형식을 HTML로 두고 내보냈다면 이 도구가 읽지 못합니다. 실행하면 "JSON으로 다시 내보내세요"라는 안내가 나옵니다.
 
-```
-python -m snsnotes scan   export.zip [-o report.md]
-python -m snsnotes notes  export.zip -o out/   [--no-redact]
-python -m snsnotes bundle export.zip -o nlm/   [--no-redact] [--max-chars 400000]
-python -m snsnotes taste  export.zip -o out/   [--no-redact]   # saved / liked / collections
-python -m snsnotes all    export.zip [-o dir]  [--no-redact] [--no-taste]
-```
 
-**Redaction is on by default** (phones, emails, bank-account-like numbers; @mentions of other people become `@someone`, your own `--account` handle is kept; in taste notes account names seen anywhere in the export are also scrubbed from captions and hashtags). Use `--no-redact` to keep the original text.
+## 3단계. 실행하기
 
-### Taste notes (saved, likes, collections)
+**Windows**
 
-Reads `saved_posts`, `saved_collections`, `saved_music`, `liked_posts`, `liked_comments` and `liked_threads` (older folder layouts are accepted; big files are streamed, standard library only). Output: `taste/<kind>/<YYYY>/<date>_<sha8>.md` with frontmatter (`source`, `kind` = saved | liked | saved+liked | liked_thread | liked_comment | saved_music, `collections`, `saved_at` / `liked_at`, `owner_hash`, `url`, `hashtags`, `sha8`) and the caption as body, plus `nlm/taste_<year>.md` bundles. A post both saved and liked is one note. **Other people's usernames and names are never written**, only `owner_hash` (first 10 hex chars of sha1 of the lowercase username). `scan_report.md` gets counts, collection count and a per-year distribution (no values).
+1. 이 폴더의 `run_windows.bat` 을 **더블클릭**하면 브라우저에 **마법사**가 열립니다. 화면 순서(9단계)대로 따라가면 됩니다. 이미 zip이 있다면 zip 파일을 `run_windows.bat` 위로 끌어다 놓으세요(그 파일이 미리 선택됩니다).
+2. 마법사는 내 컴퓨터(127.0.0.1)에서만 돌고 인터넷에 연결하지 않습니다. **브라우저 창(탭)을 닫으면 자동으로 꺼집니다.** 다시 열면 하던 단계부터 이어집니다(진행 상태는 `~/.snsnotes/state.json`).
+3. (저장·좋아요가 수만 건이면 몇 분 걸릴 수 있습니다.) 마법사 없이 쓰려면 `python -m snsnotes all 내파일.zip`.
 
-Common options: `--tz local|KST|+09:00|Asia/Seoul` (default: your computer's timezone; `Asia/Seoul` on Windows needs `pip install tzdata`), `--account HANDLE` (your handle: excluded from the @mention count, written to note frontmatter).
+> 노트북LM 단계에서는 노트북LM 사이트와 결과 폴더를 열어 드립니다. 자동으로 올리는 실험 옵션은 나중에 넣을 예정입니다.
 
-Optional install: `pip install .` gives you a `snsnotes` command.
+> ### 🛡️ 혹시 불안하다면 — 이건 정상이에요
+> - **검은 창이 잠깐 떴다 사라져요.** `run_windows.bat`이 파이썬을 "창 없이" 켜는 순간입니다. 바이러스나 해킹이 아니에요. 그 뒤로는 브라우저 화면만 보입니다.
+> - **"Windows의 PC 보호" 파란 경고가 뜰 수 있어요.** 인터넷에서 받은 처음 보는 프로그램이면 Windows가 늘 띄우는 경고입니다. [추가 정보] → [실행]을 누르면 됩니다. 걱정되면 실행하지 말고 아래 방법으로 먼저 확인하세요.
+> - **직접 확인하는 법**
+>   1. `run_windows.bat`을 메모장으로 열어 보세요. 20여 줄이고, 파이썬으로 `snsnotes` 폴더의 코드를 실행하는 것 말고는 하는 일이 없습니다. 코드도 전부 이 폴더에 글자로 들어 있어요(설치 프로그램·숨은 파일 없음).
+>   2. **인터넷을 끊고(와이파이 끄기) 실행해도 똑같이 됩니다.** 밖으로 아무것도 보내지 않는다는 뜻이에요. (노트북LM·메타 사이트 열기 버튼만 인터넷이 필요합니다.)
+>   3. 마법사 주소가 `http://127.0.0.1:…` 인 것은 "내 컴퓨터 안"이라는 뜻입니다. 다른 사람이 접속할 수 없어요.
+>   4. 끝내고 싶으면 브라우저 탭을 닫으세요. 1분 안에 프로그램이 스스로 꺼집니다. 작업 관리자에서 `pythonw`가 사라진 걸 볼 수 있어요.
+> - 문제가 생기면 알림 창이 뜨고, 기록은 `내 사용자 폴더\.snsnotes\wizard.log`에 남습니다.
 
-### Output
+**Mac**
 
-```
-out/instagram/2024/2024-03-01_1530_ab12cd34.md   # source/year/date_time_sha8.md
-nlm/instagram_2024.md  nlm/instagram_2024_part2.md  nlm/threads_2024.md
-```
+1. 처음 한 번, 터미널에서 `chmod +x run_mac.command` 를 실행합니다. ("확인되지 않은 개발자" 경고가 뜨면 파일을 우클릭 > 열기)
+2. `run_mac.command` 를 더블클릭하면 마법사가 열립니다. zip 파일을 끌어다 놓으면 그 파일이 미리 선택됩니다.
 
-Re-running `notes` skips posts whose sha8 already exists. Missing files in the export (e.g. no Threads) produce a warning, not a crash.
 
-## Tests
 
-```
-python -m unittest discover -s tests -v
-```
+## 4단계. 결과 확인
 
-Tests use a synthetic fake export (`tests/fake_export.py`); no real data is included in this repo.
+zip 파일 옆에 `<zip이름>_snsnotes` 폴더가 생깁니다.
 
-## Limits
+| 이름 | 내용 |
+| --- | --- |
+| `scan_report.md` | **먼저 읽으세요.** 전화번호·이메일·계좌번호 비슷한 숫자·다른 사람 @언급이 몇 개, 어느 날짜 글에 있는지. 저장·좋아요 건수·컬렉션 수·연도 분포도 (값은 안 보여줌) |
+| `notes/` | 내가 쓴 글, 글 하나당 메모 하나 (옵시디언 같은 노트 앱에 그대로 넣을 수 있음) |
+| `taste/` | 저장·좋아요·컬렉션 메모 (`taste/<종류>/<연도>/<날짜>_<코드>.md`) |
+| `nlm/` | 노트북LM용 파일. 연도별로 나뉘고(`taste_연도.md` 포함), 너무 길면 자동으로 `_part2` 등으로 쪼개짐 |
 
-Reads feed posts and Threads text posts only (not stories, reels metadata, DMs, comments). Export layouts can change; if your zip is not recognized, open an issue with the *file list* (never the content).
+### 취향 노트(taste)
 
-## License
+- 종류: `saved`(저장) / `liked`(좋아요) / `saved+liked`(둘 다, 메모 1개로 합침) / `liked_thread` / `liked_comment` / `saved_music`. 컬렉션 이름은 메모 머리글의 `collections`에 들어갑니다.
+- **남의 계정 보호가 기본입니다.** 원작자의 아이디·이름은 어디에도 저장하지 않고, 같은 사람인지만 알 수 있는 짧은 암호값(`owner_hash`)만 남깁니다. 캡션 속 `@멘션`은 `@someone`으로, 전화번호·이메일·계좌번호 모양은 가려지고, 내보내기 안에서 확인된 다른 계정 아이디가 캡션·해시태그에 글자 그대로 적혀 있어도 지웁니다.
+- 저장·좋아요 파일이 크면(수백 MB) 조금씩 읽어서 처리합니다. 따로 하려면 `python -m snsnotes taste 내파일.zip -o 폴더`, 빼려면 `--no-taste`.
 
-MIT (see LICENSE).
+## 5단계. 노트북LM에 올리기 전에
+
+1. `scan_report.md`에서 개인정보가 있는 날짜의 글을 확인하세요.
+2. 전화번호·이메일·계좌번호와 다른 사람 `@멘션`(`@someone`으로 바뀜. 내 아이디는 `--account 내아이디`로 지정하면 그대로 둠)은 **기본으로 가려집니다.** 원문 그대로 두려면 `--no-redact`를 붙입니다. @ 없이 글에 쓴 이름은 가려지지 않으니 직접 확인하세요.
+3. 노트북LM(구글)에 올리면 내용이 구글 서버로 갑니다. 올릴 연도와 파일을 직접 고르세요. 다른 사람 이야기가 많은 글은 빼는 것이 안전합니다.
+
+## 자주 묻는 질문
+
+- **"파이썬이 없다"고 나와요** > 1단계를 하고, Windows는 PATH 체크를 했는지 확인하세요.
+- **"HTML 형식이다 / JSON 내보내기가 아닌 것 같다"고 나와요** > 2단계 8번에서 형식이 HTML 그대로였을 가능성이 큽니다. 기간 **전체 기간**, 형식 **JSON**으로 다시 내보내세요.
+- **시간이 이상해요** > 기본은 내 컴퓨터 시간대입니다. 직접 지정하려면 `--tz KST` (한국 시간).
+- **다시 실행해도 되나요?** > 네. 이미 만든 노트는 건너뜁니다.
+
+라이선스: MIT

@@ -5,7 +5,7 @@ cd "$(dirname "$0")" || exit 1
 export PYTHONPATH="$PWD"
 if ! command -v python3 >/dev/null 2>&1; then
   echo "[ERROR] Python 3.10+ not found. Install from https://www.python.org/downloads/"
-  echo "[오류] 파이썬이 없습니다. README_ko.md 를 보세요."
+  echo "[오류] 파이썬이 없습니다. README.md 를 보세요."
   read -r -p "Press Enter to close"
   exit 1
 fi
