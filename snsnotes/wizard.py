@@ -21,8 +21,8 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .core import HTML_MSG, ExportError, is_html_export, parse_tz, read_export
 from .privacy import scan_text
-from .taste import has_taste_files, known_usernames, read_taste, taste_stats, write_taste, write_taste_bundle
-from .writers import DEFAULT_MAX_CHARS, write_bundle, write_notes
+from .taste import has_taste_files, known_usernames, read_taste, taste_stats, write_taste
+from .writers import TASTE_DIR, VOICE_DIR, write_nlm, write_notes
 
 URLS = {
     "meta": "https://accountscenter.instagram.com/info_and_permissions/",
@@ -179,7 +179,7 @@ class Wizard:
         return inspect_zip(dest)
 
     # ---- run -----------------------------------------------------------
-    def start_run(self, path: str, out: str = "", tz: str = "local", account: str = "", taste=True) -> dict:
+    def start_run(self, path: str, out: str = "", tz: str = "local", account: str = "", taste=False, notes: bool = False) -> dict:
         info = inspect_zip(path)
         if not info["ok"]:
             return {"started": False, "check": info}
@@ -188,7 +188,7 @@ class Wizard:
                 return {"started": False, "error": "already running"}
             self.job = {"running": True, "stage": 0, "pct": 0, "done": False, "error": "", "result": None}
         dest = Path(out) if out else self.out_root / Path(path).stem
-        threading.Thread(target=self._run, args=(path, dest, tz, account, taste), daemon=True).start()
+        threading.Thread(target=self._run, args=(path, dest, tz, account, taste, notes), daemon=True).start()
         return {"started": True, "out": str(dest)}
 
     def _set(self, stage=None, pct=None):
@@ -198,7 +198,7 @@ class Wizard:
             if pct is not None:
                 self.job["pct"] = int(pct)
 
-    def _run(self, path, dest, tz, account, taste):
+    def _run(self, path, dest, tz, account, taste, notes=False):
         t0 = time.time()
         try:
             self._set(0, 2)
@@ -218,33 +218,41 @@ class Wizard:
             known = known_usernames(recs) if recs else frozenset()
             self._set(2, 22)
             dest.mkdir(parents=True, exist_ok=True)
-            nw, ns = write_notes(entries, dest / "notes", True, account, known)
-            nlm = write_bundle(entries, dest / "nlm", True, DEFAULT_MAX_CHARS, account, known)
+            nw = ns = tw = 0
+            if notes:
+                nw, ns = write_notes(entries, dest / "notes", True, account, known)
             self._set(3, 28)
-            tw = 0
-            if recs:
+            if notes and recs:
                 total = max(len(recs), 1)
                 tw, _ = write_taste(recs, dest / "taste", True,
                                     progress=lambda n, t: self._set(pct=28 + 60 * n / total))
-                nlm += write_taste_bundle(recs, dest / "nlm", True)
+            self._set(3, 80)
+            nlm = write_nlm(entries, recs, dest / "nlm", True, account=account, known=known)
+            warns += nlm["warnings"]
             self._set(4, 92)
             from .cli import build_report
 
-            report = build_report(entries, account, recs)
+            report = build_report(entries, account, recs, nlm)
             (dest / "scan_report.md").write_text(report, encoding="utf-8")
             masked = {"phone": 0, "email": 0, "account": 0, "mention": 0}
             texts = [e.text for e in entries] + [r.caption for r in (recs or []) if r.caption]
             for t in texts:
                 for k, n in scan_text(t, account).items():
                     masked[k] += n
-            st = taste_stats(recs) if recs else {"total": 0, "kinds": {}, "collections": 0, "years": {}}
             result = {
                 "out": str(dest), "notes": len(entries), "notes_written": nw, "notes_skipped": ns,
-                "taste": st["total"], "taste_written": tw, "kinds": st["kinds"],
-                "collections": st["collections"], "years": st["years"],
-                "nlm_files": len(list((dest / "nlm").glob("*.md"))), "masked": masked,
+                "notes_made": bool(notes),
+                "nlm_voice_files": (nlm["voice"] or {}).get("files", 0),
+                "nlm_over_limit": bool(nlm["warnings"]),
+                "nlm_files": len(list((dest / VOICE_DIR).glob("*.md"))),
+                "masked": masked,
                 "warnings": warns, "seconds": round(time.time() - t0, 1), "peak_mb": peak_mb(),
             }
+            if recs:  # experimental taste (not reachable from the wizard UI)
+                st = taste_stats(recs)
+                result.update(taste=st["total"], taste_written=tw, kinds=st["kinds"],
+                              collections=st["collections"], years=st["years"],
+                              nlm_taste_files=(nlm["taste"] or {}).get("files", 0))
             with self.job_lock:
                 self.job.update(running=False, done=True, pct=100, stage=4, result=result)
         except ExportError as e:
@@ -266,7 +274,8 @@ class Wizard:
         if not r:
             return None
         base = Path(r)
-        return {"out": base, "nlm": base / "nlm", "taste": base / "taste"}.get(which)
+        return {"out": base, "nlm": base / "nlm", "nlm1": base / "nlm" / VOICE_DIR,
+                "nlm2": base / "nlm" / TASTE_DIR, "taste": base / "taste"}.get(which)
 
     def do_open_folder(self, which: str) -> bool:
         p = self.folder_target(which)
@@ -400,7 +409,7 @@ def make_handler(w: Wizard):
                 return self._json(inspect_zip(d.get("path", "")))
             if u.path == "/api/run":
                 r = w.start_run(d.get("path", ""), d.get("out", ""), d.get("tz", "local"), d.get("account", ""),
-                                d.get("taste", True))
+                                False, bool(d.get("notes", False)))
                 return self._json(r, 200 if r.get("started") else 400)
             if u.path == "/api/open-folder":
                 return self._json({"ok": w.do_open_folder(d.get("which", "out"))})

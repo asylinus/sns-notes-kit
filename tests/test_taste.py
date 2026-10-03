@@ -79,14 +79,14 @@ class TestTaste(Base):
             self.assertEqual("@someone " in txt, masked)
             self.assertNotIn("Stranger One", txt)  # display name never stored in any mode
 
-    def test_all_includes_taste_and_no_taste(self):
-        self.assertEqual(run("all", str(self.zip), "-o", str(self.tmp / "A"), "--tz", "+09:00")[0], 0)
-        self.assertEqual(run("all", str(self.zip), "-o", str(self.tmp / "B"), "--no-taste")[0], 0)
+    def test_taste_is_experimental_opt_in(self):
+        self.assertEqual(run("all", str(self.zip), "-o", str(self.tmp / "A"), "--tz", "+09:00", "--taste", "--notes")[0], 0)
+        self.assertEqual(run("all", str(self.zip), "-o", str(self.tmp / "B"))[0], 0)
         A, B = self.tmp / "A", self.tmp / "B"
         self.assertEqual(len(list((A / "taste").rglob("*.md"))), 6)
-        self.assertTrue((A / "nlm" / "taste_2021.md").is_file())
+        self.assertTrue((A / "nlm" / "2_내취향" / "taste_2021.md").is_file())
         self.assertFalse((B / "taste").exists())
-        self.assertEqual(list((B / "nlm").glob("taste_*")), [])
+        self.assertFalse((B / "nlm" / "2_내취향").exists())
         rep = (A / "scan_report.md").read_text(encoding="utf-8")
         self.assertIn("Taste (saved / liked): 6 entries, 1 collections", rep)
         self.assertIn("2021: 1", rep)
@@ -106,7 +106,7 @@ class TestTaste(Base):
 
     def test_taste_only_zip(self):
         z = fake_export.build_taste_only(self.tmp / "only.zip")
-        self.assertEqual(run("all", str(z), "-o", str(self.tmp / "T"))[0], 0)
+        self.assertEqual(run("all", str(z), "-o", str(self.tmp / "T"), "--taste", "--notes")[0], 0)
         self.assertEqual(len(list((self.tmp / "T" / "taste").rglob("*.md"))), 6)
 
     def test_html_export_friendly_error(self):

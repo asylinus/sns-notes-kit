@@ -8,9 +8,9 @@ from pathlib import Path
 
 from . import __version__
 from .core import HTML_MSG, ExportError, is_html_export, parse_tz, read_export
-from .taste import has_taste_files, known_usernames, read_taste, taste_stats, write_taste, write_taste_bundle
+from .taste import has_taste_files, known_usernames, read_taste, taste_stats, write_taste
 from .privacy import scan_text
-from .writers import DEFAULT_MAX_CHARS, write_bundle, write_notes
+from .writers import DEFAULT_MAX_CHARS, TASTE_DIR, VOICE_DIR, write_bundle, write_nlm, write_notes
 
 LABELS = {
     "phone": "Phone numbers",
@@ -20,7 +20,7 @@ LABELS = {
 }
 
 
-def build_report(entries, account="", taste=None) -> str:
+def build_report(entries, account="", taste=None, nlm=None) -> str:
     totals = dict.fromkeys(LABELS, 0)
     dates = defaultdict(list)
     for e in entries:
@@ -45,6 +45,17 @@ def build_report(entries, account="", taste=None) -> str:
         lines += [f"- {k}: {n}" for k, n in sorted(st["kinds"].items())] or ["- none"]
         lines.append("- by year: " + (", ".join(f"{y}: {n}" for y, n in st["years"].items()) or "none"))
         lines.append("")
+    if nlm:
+        lines.append("## NotebookLM folders")
+        for key, folder in (("voice", VOICE_DIR), ("taste", TASTE_DIR)):
+            i = nlm.get(key)
+            if i:
+                lines.append(
+                    f"- nlm/{folder}: {i['files']} files (largest: {i['max_words']:,} words, {i['max_bytes'] / 1048576:.1f} MB)"
+                    + (" - several years share a file (file headers show the years)" if i["merged_years"] else "")
+                )
+        lines += [f"- WARNING: {w}" for w in nlm["warnings"]]
+        lines.append("")
     lines.append("Note: phones/emails/accounts are masked by default in notes, bundles and taste notes (use --no-redact to turn off).")
     return "\n".join(lines) + "\n"
 
@@ -61,6 +72,10 @@ def _redact_flag(p):
     p.add_argument("--redact", action="store_true", help=argparse.SUPPRESS)  # kept for old scripts (now the default)
 
 
+def _notes_flag(p):
+    p.add_argument("--notes", action="store_true", help="also write one note per post/saved item (notes/, taste/) for Obsidian-like apps (tens of thousands of files)")
+
+
 def parser():
     ap = argparse.ArgumentParser(
         prog="snsnotes",
@@ -74,23 +89,25 @@ def parser():
     p = sub.add_parser("bundle", help="NotebookLM-friendly yearly files")
     _common(p)
     _redact_flag(p)
-    p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS, help="max chars per file")
+    p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS, help="start size per file (grows automatically to stay within 45 files)")
     p = sub.add_parser("wizard", help="step-by-step browser wizard (local only, closes with the tab)")
     p.add_argument("--no-browser", action="store_true", help="do not open the browser automatically")
     p.add_argument("--port", type=int, default=0, help="fixed port (default: random free port)")
     p.add_argument("--zip", default="", help="pre-select this export zip")
-    p = sub.add_parser("taste", help="notes for saved posts, likes and collections (other people's names are hashed)")
+    p = sub.add_parser("taste", help="experimental: NotebookLM files for saved posts, likes and collections (other people's names are hashed)")
     _common(p)
     _redact_flag(p)
     p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
+    _notes_flag(p)
     p = sub.add_parser("scan", help="privacy pre-check report (no values)")
     _common(p, out_required=False, out_help="also save report to this file")
-    p.add_argument("--no-taste", action="store_true", help="skip saved/liked counts")
-    p = sub.add_parser("all", help="notes + bundle + taste + scan report")
+    p.add_argument("--taste", action="store_true", help="experimental: also count saved/liked")
+    p = sub.add_parser("all", help="NotebookLM folders (my voice + my taste) + scan report; --notes adds one-file-per-post notes")
     _common(p, out_required=False, out_help="output folder (default: next to the zip)")
     _redact_flag(p)
-    p.add_argument("--no-taste", action="store_true", help="skip saved/liked/collections notes")
+    p.add_argument("--taste", action="store_true", help="experimental: also build saved/liked/collections files (2_내취향)")
     p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
+    _notes_flag(p)
     return ap
 
 
@@ -146,14 +163,15 @@ def _run(a) -> int:
 
         return serve(port=a.port, open_browser=not a.no_browser, zip_path=a.zip)
     redact = not getattr(a, "no_redact", False)
-    use_taste = a.cmd == "taste" or (a.cmd in ("all", "scan") and not getattr(a, "no_taste", False))
+    use_taste = a.cmd == "taste" or (a.cmd in ("all", "scan") and getattr(a, "taste", False))
     if a.cmd == "taste":
         base = Path(a.out)
         recs = _taste(a, strict=True)
-        w, sk = write_taste(recs, base / "taste", redact)
-        print(f"taste: {w} written, {sk} skipped (already exist) -> {base / 'taste'}")
-        files = write_taste_bundle(recs, base / "nlm", redact, a.max_chars)
-        print(f"taste bundle: {len(files)} files -> {base / 'nlm'}")
+        if a.notes:
+            w, sk = write_taste(recs, base / "taste", redact)
+            print(f"taste notes: {w} written, {sk} skipped (already exist) -> {base / 'taste'}")
+        res = write_nlm([], recs, base / "nlm", redact, a.max_chars)
+        _print_nlm(res, base / "nlm")
         return 0
     try:
         entries, warnings = read_export(a.zip, parse_tz(a.tz))
@@ -176,21 +194,30 @@ def _run(a) -> int:
 
     known = known_usernames(recs) if (recs and redact) else frozenset()
     base = Path(a.out) if a.out else Path(a.zip).with_name(Path(a.zip).stem + "_snsnotes")
-    if a.cmd in ("notes", "all"):
+    if a.cmd == "notes" or (a.cmd == "all" and a.notes):
         dest = base / "notes" if a.cmd == "all" else base
         w, s = write_notes(entries, dest, redact, a.account, known)
         print(f"notes: {w} written, {s} skipped (already exist) -> {dest}")
-    if a.cmd in ("bundle", "all"):
-        dest = base / "nlm" if a.cmd == "all" else base
-        files = write_bundle(entries, dest, redact, a.max_chars, a.account, known)
-        print(f"bundle: {len(files)} files -> {dest}")
+    if a.cmd == "bundle":
+        info = {}
+        files = write_bundle(entries, base / VOICE_DIR, redact, a.max_chars, a.account, known, info=info)
+        print(f"bundle: {len(files)} files -> {base / VOICE_DIR}")
     if a.cmd == "all":
-        if recs is not None:
+        if recs is not None and a.notes:
             w, sk = write_taste(recs, base / "taste", redact)
-            print(f"taste: {w} written, {sk} skipped (already exist) -> {base / 'taste'}")
-            files = write_taste_bundle(recs, base / "nlm", redact, a.max_chars)
-            print(f"taste bundle: {len(files)} files -> {base / 'nlm'}")
+            print(f"taste notes: {w} written, {sk} skipped (already exist) -> {base / 'taste'}")
+        res = write_nlm(entries, recs, base / "nlm", redact, a.max_chars, a.account, known)
+        _print_nlm(res, base / "nlm")
         base.mkdir(parents=True, exist_ok=True)
-        (base / "scan_report.md").write_text(build_report(entries, a.account, recs), encoding="utf-8")
+        (base / "scan_report.md").write_text(build_report(entries, a.account, recs, res), encoding="utf-8")
         print(f"scan report -> {base / 'scan_report.md'}")
     return 0
+
+
+def _print_nlm(res, nlm):
+    for key, folder in (("voice", VOICE_DIR), ("taste", TASTE_DIR)):
+        i = res[key]
+        if i:
+            print(f"NotebookLM {folder}: {i['files']} files -> {nlm / folder}")
+    for w in res["warnings"]:
+        print(f"Warning: {w}", file=sys.stderr)

@@ -132,7 +132,7 @@ class TestBundle(Base):
             sorted(p.name for p in files),
             ["instagram_2023.md", "instagram_2024.md", "threads_2024.md"],
         )
-        self.assertTrue(files[0].read_text(encoding="utf-8").startswith("# Instagram 2023"))
+        self.assertTrue(files[0].read_text(encoding="utf-8").startswith("# My own posts: instagram_2023"))
 
     def test_split_under_limit(self):
         z = fake_export.build(self.tmp / "big.zip", big_posts=40)
@@ -144,6 +144,57 @@ class TestBundle(Base):
         for p in parts:
             self.assertLessEqual(len(p.read_text(encoding="utf-8")), limit)
         self.assertIn("part 1/", parts[0].read_text(encoding="utf-8").splitlines()[0])
+
+
+class TestPacking(Base):
+    def _entries(self, n=40):
+        z = fake_export.build(self.tmp / "big.zip", big_posts=n)
+        return read_export(z, KST)[0]
+
+    def test_cap_forces_merge_and_growth(self):
+        entries = self._entries()
+        info = {}
+        files = write_bundle(entries, self.tmp / "v", max_chars=1500, max_files=2, info=info)
+        self.assertLessEqual(len(files), 2)
+        self.assertFalse(info["over_limit"])
+        self.assertTrue(info["merged_years"])
+        self.assertGreater(info["max_chars_used"], 1500)
+        self.assertTrue(any("merged" in p.name for p in files))
+        txt = "\n".join(p.read_text(encoding="utf-8") for p in files)
+        for k in ("instagram_2022", "instagram_2023", "threads_2024"):
+            self.assertIn(k, txt)  # years shown in headers
+
+    def test_years_kept_apart_when_possible(self):
+        entries = self._entries()
+        info = {}
+        files = write_bundle(entries, self.tmp / "v", max_chars=3000, max_files=45, info=info)
+        self.assertFalse(info["merged_years"])
+        self.assertLessEqual(len(files), 45)
+        self.assertFalse(any("merged" in p.name for p in files))
+
+    def test_over_limit_warns(self):
+        from snsnotes.writers import write_nlm
+
+        entries = self._entries()
+        res = write_nlm(entries, None, self.tmp / "nlm", max_chars=1000, max_files=1, max_words=50)
+        self.assertTrue(res["voice"]["over_limit"])
+        self.assertTrue(res["warnings"])
+        self.assertIn("Plus", res["warnings"][0])
+
+    def test_word_cap(self):
+        entries = self._entries()
+        files = write_bundle(entries, self.tmp / "v", max_chars=10**9, max_files=99, max_words=60)
+        for p in files:
+            blocks = p.read_text(encoding="utf-8").split("\n\n", 1)[1]
+            self.assertLessEqual(len(blocks.split()), 60)
+        self.assertGreater(len(files), 3)
+
+    def test_stale_files_removed(self):
+        out = self.tmp / "v"
+        out.mkdir()
+        (out / "old.md").write_text("x")
+        write_bundle(read_export(self.zip, KST)[0], out)
+        self.assertFalse((out / "old.md").exists())
 
 
 class TestPrivacy(Base):
@@ -195,9 +246,19 @@ class TestCli(Base):
         code, out, _ = self.run_cli("all", str(self.zip), "--tz", "+09:00")
         self.assertEqual(code, 0)
         base = self.tmp / "fake_snsnotes"
-        self.assertEqual(len(list((base / "notes").rglob("*.md"))), 7)
+        self.assertFalse((base / "notes").exists())  # per-post notes only with --notes
+        self.assertFalse((base / "taste").exists())
+        self.assertFalse((base / "nlm" / "2_내취향").exists())
         self.assertTrue((base / "scan_report.md").is_file())
-        self.assertEqual(len(list((base / "nlm").glob("*.md"))), 3)
+        self.assertEqual(len(list((base / "nlm" / "1_내목소리").glob("*.md"))), 3)
+        self.assertNotIn("Taste", (base / "scan_report.md").read_text(encoding="utf-8"))
+
+    def test_all_with_notes_flag(self):
+        code, _, _ = self.run_cli("all", str(self.zip), "--tz", "+09:00", "--notes")
+        self.assertEqual(code, 0)
+        base = self.tmp / "fake_snsnotes"
+        self.assertEqual(len(list((base / "notes").rglob("*.md"))), 7)
+        self.assertEqual(len(list((base / "nlm" / "1_내목소리").glob("*.md"))), 3)
 
     def test_missing_file_message(self):
         code, _, err = self.run_cli("scan", str(self.tmp / "nope.zip"))

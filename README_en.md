@@ -6,9 +6,11 @@
 
 Turn **your own** Instagram / Threads data export into:
 
-- one Markdown note per post (frontmatter + original text), and
-- NotebookLM-ready bundles (one file per source per year, auto-split under ~400k characters),
+- a NotebookLM-ready **"my voice" bundle** (`nlm/1_내목소리/`: your own posts, files per year; at most 45 files, each under 350k words / 50 MB, so it fits a free notebook),
+- optionally (`--notes` / wizard checkbox) one Markdown note per post for Obsidian-like apps,
 - plus a privacy pre-check report (no values shown).
+
+A saved/liked ("taste") notes feature exists too, but it can be confusing for first-time users, so it **will be released separately as its own version**.
 
 Python 3.10+, standard library only, **runs fully offline**. See [PRIVACY.md](PRIVACY.md). Korean guide (main): [README.md](README.md).
 
@@ -36,7 +38,7 @@ If you export as HTML by mistake, snsnotes stops with a message asking you to ex
 
 The wizard binds to 127.0.0.1 only, makes no outgoing connections (no web fonts either), resumes where you left off (`~/.snsnotes/state.json`), and **stops by itself when you close the browser tab** (the page pings every 15 s; 45 s of silence ends it). Nothing runs in the background. Experimental NotebookLM automation: later.
 
-Results appear next to the zip in `<zipname>_snsnotes/`: `notes/`, `nlm/`, `scan_report.md`.
+Results appear next to the zip in `<zipname>_snsnotes/`: `nlm/1_내목소리/`, `scan_report.md` (plus `notes/` only with the checkbox).
 
 ### Is this safe? (what you'll see)
 - **A black window flashes for a moment.** That's `run_windows.bat` starting Python without a console. Not malware. After that you only see the browser page.
@@ -52,16 +54,16 @@ Results appear next to the zip in `<zipname>_snsnotes/`: `notes/`, `nlm/`, `scan
 ```
 python -m snsnotes scan   export.zip [-o report.md]
 python -m snsnotes notes  export.zip -o out/   [--no-redact]
-python -m snsnotes bundle export.zip -o nlm/   [--no-redact] [--max-chars 400000]
-python -m snsnotes taste  export.zip -o out/   [--no-redact]   # saved / liked / collections
-python -m snsnotes all    export.zip [-o dir]  [--no-redact] [--no-taste]
+python -m snsnotes bundle export.zip -o out/   [--no-redact] [--max-chars 400000]   # -> out/1_내목소리/
+python -m snsnotes all    export.zip [-o dir]  [--no-redact] [--notes]
+# experimental, hidden from the wizard: taste export.zip -o out/ ; all --taste
 ```
 
 **Redaction is on by default** (phones, emails, bank-account-like numbers; @mentions of other people become `@someone`, your own `--account` handle is kept; in taste notes account names seen anywhere in the export are also scrubbed from captions; **hashtags are kept** as public topic words). Use `--no-redact` to keep the original text.
 
-### Taste notes (saved, likes, collections)
+### Taste notes (experimental)
 
-Reads `saved_posts`, `saved_collections`, `saved_music`, `liked_posts`, `liked_comments` and `liked_threads` (older folder layouts are accepted; big files are streamed, standard library only). Output: `taste/<kind>/<YYYY>/<date>_<sha8>.md` with frontmatter (`source`, `kind` = saved | liked | saved+liked | liked_thread | liked_comment | saved_music, `collections`, `saved_at` / `liked_at`, `owner_hash`, `url`, `hashtags`, `sha8`) and the caption as body, plus `nlm/taste_<year>.md` bundles. A post both saved and liked is one note. **Other people's usernames and names are never written**, only `owner_hash` (first 10 hex chars of sha1 of the lowercase username). `scan_report.md` gets counts, collection count and a per-year distribution (no values).
+Saved/liked/collections support exists in the code (`taste` command, `all --taste`, output `nlm/2_내취향/`) but is not part of this release's wizard; it will be released separately.
 
 Common options: `--tz local|KST|+09:00|Asia/Seoul` (default: your computer's timezone; `Asia/Seoul` on Windows needs `pip install tzdata`), `--account HANDLE` (your handle: excluded from the @mention count, written to note frontmatter).
 
@@ -70,11 +72,11 @@ Optional install: `pip install .` gives you a `snsnotes` command.
 ### Output
 
 ```
-out/instagram/2024/2024-03-01_1530_ab12cd34.md   # source/year/date_time_sha8.md
-nlm/instagram_2024.md  nlm/instagram_2024_part2.md  nlm/threads_2024.md
+nlm/1_내목소리/instagram_2024.md  instagram_2024_part2.md  threads_2024.md   # at most 45 files
+notes/instagram/2024/2024-03-01_1530_ab12cd34.md   # only with --notes
 ```
 
-Re-running `notes` skips posts whose sha8 already exists. Missing files in the export (e.g. no Threads) produce a warning, not a crash.
+The NotebookLM files start at ~400k characters each and grow automatically to stay within 45 files (years are kept apart if possible; otherwise several years share a file and the header lists them). If it still exceeds 45, a warning appears and `scan_report.md` says: use NotebookLM Plus or higher, or split across more notebooks. Re-running `notes` skips posts whose sha8 already exists. Missing files in the export (e.g. no Threads) produce a warning, not a crash.
 
 ## Tests
 

@@ -141,24 +141,33 @@ class TestApi(WizBase):
         self.assertEqual(p["error"], "")
         res = p["result"]
         self.assertEqual(res["notes"], 7)
-        self.assertEqual(res["taste"], 6)
-        self.assertEqual(res["collections"], 1)
-        self.assertEqual(res["masked"]["phone"], 2)  # own post + taste caption
-        self.assertGreaterEqual(res["masked"]["email"], 2)
+        for k in ("taste", "taste_written", "collections", "kinds", "years", "nlm_taste_files"):
+            self.assertNotIn(k, res)  # taste is hidden from the wizard
+        self.assertEqual(res["masked"]["phone"], 1)
+        self.assertGreaterEqual(res["masked"]["email"], 1)
+        self.assertFalse(res["notes_made"])
         self.assertEqual(p["pct"], 100)
         out = Path(res["out"])
-        self.assertEqual(len(list((out / "notes").rglob("*.md"))), 7)
-        self.assertEqual(len(list((out / "taste").rglob("*.md"))), 6)
+        self.assertFalse((out / "notes").exists())  # default: no per-post notes
+        self.assertFalse((out / "taste").exists())
+        self.assertFalse((out / "nlm" / "2_내취향").exists())
         self.assertTrue((out / "scan_report.md").is_file())
-        self.assertEqual(res["nlm_files"], len(list((out / "nlm").glob("*.md"))))
+        self.assertEqual(res["nlm_voice_files"], len(list((out / "nlm" / "1_내목소리").glob("*.md"))))
+        self.assertEqual(res["nlm_voice_files"], 3)
+        self.assertFalse(res["nlm_over_limit"])
         txt = "\n".join(p.read_text(encoding="utf-8") for p in out.rglob("*.md")).lower()
         self.assertNotIn("stranger_one", txt)
         self.assertNotIn("010-9999-8888", txt)
-        # second run is idempotent
-        self.c.post("/api/run", {"path": str(z), "out": str(out)})
+        # notes checkbox on -> per-post notes; second run skips existing ones
+        self.c.post("/api/run", {"path": str(z), "out": str(out), "notes": True})
         p2 = self.wait_done()
-        self.assertEqual(p2["result"]["notes_written"], 0)
-        self.assertEqual(p2["result"]["taste_written"], 0)
+        self.assertTrue(p2["result"]["notes_made"])
+        self.assertEqual(p2["result"]["notes_written"], 7)
+        self.assertEqual(len(list((out / "notes").rglob("*.md"))), 7)
+        self.c.post("/api/run", {"path": str(z), "out": str(out), "notes": True})
+        p3 = self.wait_done()
+        self.assertEqual(p3["result"]["notes_written"], 0)
+        self.assertEqual(p3["result"]["nlm_voice_files"], 3)
 
     def test_run_rejects_html_and_missing(self):
         h = fake_export.build_html(self.tmp / "h.zip")

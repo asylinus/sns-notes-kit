@@ -362,37 +362,22 @@ def write_taste(recs: list[Taste], out: Path, do_redact=True, progress=None) -> 
     return written, skipped
 
 
-def write_taste_bundle(recs: list[Taste], out: Path, do_redact=True, max_chars=400_000) -> list[Path]:
-    out = Path(out)
-    out.mkdir(parents=True, exist_ok=True)
-    groups = defaultdict(list)
-    for r in recs:
-        if r.caption:
-            groups[r.when.year].append(r)
-    files = []
+def write_taste_bundle(recs: list[Taste], out: Path, do_redact=True, max_chars=400_000, max_files=45, info=None,
+                       max_words=350_000, max_bytes=50 * 1024 * 1024) -> list[Path]:
+    from .writers import pack_files
+
     known = known_usernames(recs) if do_redact else frozenset()
-    for year, rs in sorted(groups.items()):
-        parts, size, budget = [[]], 0, max_chars - 200
-        for r in rs:
-            col = f" | {', '.join(sorted(r.collections))}" if r.collections else ""
-            ht = clean_hashtags(r, do_redact, known)
-            tags = f"\n{' '.join('#' + h for h in ht)}" if ht else ""
-            b = f"## {r.when:%Y-%m-%d} | {r.kind}{col}\n{clean_caption(r, do_redact, known)}{tags}\n\n"
-            if parts[-1] and size + len(b) > budget:
-                parts.append([])
-                size = 0
-            parts[-1].append(b)
-            size += len(b)
-        for i, blocks in enumerate(parts, 1):
-            label = f"Taste {year}" + (f" (part {i}/{len(parts)})" if len(parts) > 1 else "")
-            p = out / (f"taste_{year}" + (f"_part{i}" if len(parts) > 1 else "") + ".md")
-            p.write_text(
-                f"# {label} - {len(blocks)} entries (saved/liked posts by others, owners anonymized)\n\n"
-                + "".join(blocks),
-                encoding="utf-8",
-            )
-            files.append(p)
-    return files
+    items = []
+    for r in recs:
+        if not r.caption:
+            continue
+        col = f" | {', '.join(sorted(r.collections))}" if r.collections else ""
+        ht = clean_hashtags(r, do_redact, known)
+        tags = f"\n{' '.join('#' + h for h in ht)}" if ht else ""
+        items.append(("taste", r.when.year,
+                      f"## {r.when:%Y-%m-%d} | {r.kind}{col}\n{clean_caption(r, do_redact, known)}{tags}\n\n"))
+    return pack_files(items, out, "Taste", "saved/liked posts by others, owners anonymized", max_chars, max_files,
+                      max_words, max_bytes, info)
 
 
 def taste_stats(recs: list[Taste]) -> dict:
