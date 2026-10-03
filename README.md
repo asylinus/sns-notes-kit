@@ -35,6 +35,15 @@ The wizard binds to 127.0.0.1 only, makes no outgoing connections (no web fonts 
 
 Results appear next to the zip in `<zipname>_snsnotes/`: `notes/`, `nlm/`, `scan_report.md`.
 
+### Is this safe? (what you'll see)
+- **A black window flashes for a moment.** That's `run_windows.bat` starting Python without a console. Not malware. After that you only see the browser page.
+- **Windows SmartScreen ("Windows protected your PC") may appear** for files downloaded from the internet. Click *More info* → *Run anyway*, or check first:
+  - Open `run_windows.bat` in Notepad — about 20 lines that only run the code in the `snsnotes` folder (plain text, no installer, nothing hidden).
+  - **Turn off Wi-Fi and run it — it works the same.** Nothing is sent anywhere (only the "open Meta / NotebookLM" buttons need the internet).
+  - The wizard address `http://127.0.0.1:…` means "this computer only".
+  - Close the tab and it stops itself within a minute (`pythonw` disappears from Task Manager).
+- Errors show a message box and go to `%USERPROFILE%\.snsnotes\wizard.log`.
+
 ## 3. Command line
 
 ```
