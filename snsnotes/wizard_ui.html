@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SNS 노트 마법사</title>
+<style>
+/* 가운데 카드 한 장 + 위 단계 점 — 한 화면에 한 가지 일만. 인터넷 글꼴 없음(시스템 글꼴만). */
+:root{
+  --bg:#F3F1EC; --card:#FFFFFF; --fg:#22252A; --muted:#6B6F76; --line:#E2DED6;
+  --accent:#2E7D6B; --accent-ink:#FFFFFF; --accent-soft:#E2F0EC; --warn:#A8641A; --warn-soft:#F7EBDD; --bad:#B3261E;
+  --display:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --sans:"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17191C; --card:#202327; --fg:#ECEDEF; --muted:#9BA0A7; --line:#30343A;
+  --accent:#6CC3AE; --accent-ink:#0F1B18; --accent-soft:#1D2F2A; --warn:#E3A35C; --warn-soft:#33281C; --bad:#F2B8B5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17191C; --card:#202327; --fg:#ECEDEF; --muted:#9BA0A7; --line:#30343A;
+  --accent:#6CC3AE; --accent-ink:#0F1B18; --accent-soft:#1D2F2A; --warn:#E3A35C; --warn-soft:#33281C; --bad:#F2B8B5; color-scheme:dark}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.6}
+.wrap{min-height:100%;display:grid;align-content:start;justify-items:center;gap:18px;padding-inline:16px;padding-block:22px 40px}
+.top{width:100%;max-width:620px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--display);font-size:1.15rem}
+.tools{display:flex;gap:6px}
+.chip{font:inherit;font-size:.8rem;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:4px 10px;cursor:pointer}
+.dots{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dot.on{background:var(--accent);width:22px;border-radius:5px}
+.dot.done{background:var(--accent);opacity:.45}
+.card{width:100%;max-width:620px;box-sizing:border-box;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 24px;display:grid;gap:16px;box-shadow:0 1px 0 var(--line)}
+.step{font-size:.78rem;letter-spacing:.06em;color:var(--muted)}
+h1{font-family:var(--display);font-size:1.7rem;line-height:1.3;margin:0;text-wrap:balance}
+p{margin:0;color:var(--muted);max-width:60ch}
+.main{font:inherit;font-weight:700;font-size:1.05rem;background:var(--accent);color:var(--accent-ink);border:0;border-radius:12px;padding:14px 18px;cursor:pointer;width:100%}
+.main:disabled{opacity:.45;cursor:default}
+.sub{font:inherit;background:transparent;color:var(--accent);border:1px solid var(--accent);border-radius:12px;padding:11px 16px;cursor:pointer;width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1 1 200px;min-width:0}
+.back{font:inherit;font-size:.9rem;background:none;border:0;color:var(--muted);cursor:pointer;justify-self:start;padding:0}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.promise{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:.92rem}
+.promise b{color:var(--accent);flex:none;white-space:nowrap}
+.tip{background:var(--warn-soft);border-radius:12px;padding:12px 14px;font-size:.92rem;color:var(--fg)}
+.tip b{color:var(--warn)}
+.err{background:var(--warn-soft);border:1px solid var(--bad);color:var(--fg);border-radius:12px;padding:12px 14px;font-size:.92rem}
+ol.path{margin:0;padding-left:1.2em;display:grid;gap:4px;font-size:.95rem}
+ol.path em{font-style:normal;background:var(--warn-soft);color:var(--warn);padding:0 6px;border-radius:5px;font-weight:700}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;color:var(--muted);display:grid;gap:6px;cursor:pointer;word-break:break-all}
+.drop.ok{border-color:var(--accent);color:var(--fg);background:var(--accent-soft)}
+.drop.hot{border-color:var(--accent)}
+.found{display:grid;gap:8px}
+.file{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--bg);font-size:.92rem}
+.file.bad{opacity:.6;cursor:default}
+.file span:first-child{word-break:break-all}
+.file span:last-child{font-family:var(--mono);color:var(--muted);font-size:.82rem;white-space:nowrap}
+.bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:2px}
+.stat b{font-family:var(--mono);font-size:1.3rem;font-variant-numeric:tabular-nums}
+.stat span{font-size:.82rem;color:var(--muted)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.92rem}
+.check input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px}
+.note{font-size:.8rem;color:var(--muted);text-align:center;max-width:620px}
+@media (prefers-reduced-motion: reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">SNS 노트 마법사</div>
+    <div class="tools"><button class="chip" id="theme" type="button">◐</button><button class="chip" id="lang" type="button">English</button></div>
+  </div>
+  <div class="dots" id="dots" aria-hidden="true"></div>
+  <main class="card" id="card" aria-live="polite"></main>
+  <div class="note" id="foot"></div>
+</div>
+
+<script>
+const TOKEN="__TOKEN__";
+const T={ko:{
+ foot:"이 도구는 인터넷에 연결하지 않고, 내 컴퓨터 밖으로 아무것도 보내지 않습니다. 창을 닫으면 완전히 끝납니다.",
+ back:"← 이전",
+ s:[
+  {h:"내 SNS로 나만의 노트와 오디오북 만들기",p:"인스타그램·스레드에 쓴 글과 저장한 것들을 정리해서, 노트북LM에서 읽고 듣는 나만의 기록으로 만듭니다. 처음이라면 10분, 기다리는 시간은 메타가 파일을 준비하는 동안뿐이에요.",promise:"<b>안심하세요</b> · 내 PC 안에서만 정리합니다. 남의 연락처·계정 이름은 자동으로 가려요.",main:"시작하기",sub:"이미 zip 파일이 있어요"},
+  {h:"메타에서 내 정보 내보내기",p:"아래 버튼으로 인스타그램 계정 센터를 엽니다. 순서대로 누르면 돼요.",path:["더 보기 → <b>설정</b>","<b>계정 센터</b> → 내 정보 및 권한","<b>내 정보 내보내기</b> → 내보내기 만들기","내 계정 선택 → <b>기기로 내보내기</b>","기간 <em>전체 기간</em>, 형식 <em>JSON</em> 으로 바꾸기","<b>내보내기 시작</b>"],tip:"<b>꼭 바꾸세요</b> · 기본값은 ‘작년 · HTML’이에요. 그대로 받으면 이 도구가 읽지 못해요.",main:"계정 센터 열기",sub:"요청했어요, 다음으로"},
+  {h:"메일이 오면 다시 만나요",p:"메타가 파일을 준비하면 메일로 알려줘요. 받을 수 있는 기간이 정해져 있으니 메일이 오면 바로 내려받으세요. 이 창은 닫아도 괜찮아요 — 다시 열면 여기서부터 이어집니다.",promise:"<b>뒤에서 도는 것 없음</b> · 기다리는 동안 이 도구는 꺼져 있어요.",main:"파일을 받았어요",sub:"창 닫기"},
+  {h:"받은 zip 파일을 넣어 주세요",p:"압축은 풀지 마세요. 그대로 끌어다 놓으면 됩니다.",drop:"여기에 zip 파일을 끌어다 놓기 (또는 눌러서 고르기)",find:"다운로드 폴더에서 찾아보기",main:"이 파일로 정리하기"},
+  {h:"정리하는 중이에요",p:"글·저장한 것·좋아요를 하나씩 노트로 만들고 있어요. 창을 그대로 두세요.",main:"다음"},
+  {h:"올리기 전에 한 번 확인해요",p:"노트북LM에 올리기 전에, 가린 것과 남은 것을 보여드려요.",main:"괜찮아요, 계속",sub:"폴더 열어서 직접 보기"},
+  {h:"노트북LM에 올리기",p:"노트북LM에서 새 노트북을 만들고, 옆에 열리는 폴더의 파일들을 끌어다 놓으세요.",main:"노트북LM 열기",sub:"올릴 파일 폴더 열기"},
+  {h:"오디오북 만들기",p:"노트북LM 오른쪽 ‘스튜디오’에서 <b>오디오 개요</b>를 누르면 내 기록으로 대화형 오디오가 만들어져요. 몇 분 걸립니다.",tip:"<b>실험 기능은 나중에</b> · 자동으로 올리고 오디오까지 만드는 옵션은 아직 넣지 않았어요.",main:"다 했어요"},
+  {h:"완성! 🎧",p:"나만의 기록이 노트북LM에 올라갔어요. 새 글이 쌓이면 몇 달 뒤 다시 내보내서 같은 방법으로 덧붙이면 됩니다. 이미 만든 노트는 건너뛰어요.",main:"처음으로"}
+ ],
+ stats:["내가 쓴 글","저장·좋아요","컬렉션","노트북LM 파일"],
+ masked:(m)=>`가린 것 · 연락처·이메일 ${m.phone+m.email} · 계좌 ${m.account} · 남의 @멘션 ${m.mention} · 남의 계정 이름 전부(익명 번호로)`,
+ agree:"남의 이름·연락처가 가려진 걸 확인했어요",
+ progress:["글 읽는 중","저장·좋아요 읽는 중","내 글 노트 만드는 중","저장·좋아요 노트 만드는 중","점검 보고서 만드는 중"],
+ doneMsg:"끝났어요. ‘다음’을 눌러 주세요.",
+ sizes:{html:"HTML 형식 — JSON으로 다시",unknown:"형식 확인 안 됨"},
+ none:"찾지 못했어요. 파일을 끌어다 놓아 주세요.",
+ searched:(d)=>`찾은 위치: ${d}`,
+ uploading:"가져오는 중…",
+ closeMsg:"이제 이 창을 닫아도 됩니다. 다시 열면 이어서 합니다.",
+ rerun:"이어서 정리합니다(이미 만든 노트는 건너뜀).",
+ pre:"선택한 파일"
+},en:{
+ foot:"This tool never goes online and sends nothing off your computer. Closing the window stops it completely.",
+ back:"← Back",
+ s:[
+  {h:"Turn your SNS into personal notes and an audiobook",p:"Collect what you posted and saved on Instagram and Threads into your own record you can read and listen to in NotebookLM. About 10 minutes, plus the wait while Meta prepares your file.",promise:"<b>Private by design</b> · Everything stays on your PC. Other people's contacts and names are hidden automatically.",main:"Start",sub:"I already have the zip"},
+  {h:"Export your information from Meta",p:"This button opens Instagram Accounts Center. Follow the steps.",path:["More → <b>Settings</b>","<b>Accounts Center</b> → Your information and permissions","<b>Export your information</b> → Create export","Pick your account → <b>Export to device</b>","Set range <em>All time</em>, format <em>JSON</em>","<b>Start export</b>"],tip:"<b>Change these</b> · Defaults are ‘Last year · HTML’. This tool can't read HTML.",main:"Open Accounts Center",sub:"Requested, next"},
+  {h:"See you when the email arrives",p:"Meta emails you when the file is ready. The download is only available for a limited time, so grab it promptly. You can close this window; reopening resumes here.",promise:"<b>Nothing runs in the background</b> while you wait.",main:"I have the file",sub:"Close window"},
+  {h:"Drop in the zip you downloaded",p:"Don't unzip it. Just drag it here.",drop:"Drag your zip file here (or click to choose)",find:"Look in my Downloads folder",main:"Use this file"},
+  {h:"Organizing…",p:"Turning posts, saves and likes into notes. Keep this window open.",main:"Next"},
+  {h:"One check before uploading",p:"Here's what was hidden and what remains.",main:"Looks good",sub:"Open the folder"},
+  {h:"Upload to NotebookLM",p:"Create a notebook and drag in the files from the folder that opens.",main:"Open NotebookLM",sub:"Open files folder"},
+  {h:"Make the audiobook",p:"In NotebookLM's Studio panel, click <b>Audio Overview</b>. It takes a few minutes.",tip:"<b>Experimental options later</b> · Automatic upload and audio generation is not included yet.",main:"Done"},
+  {h:"Done! 🎧",p:"Your record is in NotebookLM. Export again in a few months to add new posts — existing notes are skipped.",main:"Start over"}
+ ],
+ stats:["my posts","saves & likes","collections","NotebookLM files"],
+ masked:(m)=>`Hidden · contacts/emails ${m.phone+m.email} · account numbers ${m.account} · others' @mentions ${m.mention} · all other people's usernames (as anonymous ids)`,
+ agree:"I checked that other people's names and contacts are hidden",
+ progress:["Reading posts","Reading saves & likes","Writing your post notes","Writing saves & likes notes","Writing the check report"],
+ doneMsg:"Finished. Press Next.",
+ sizes:{html:"HTML export - export again as JSON",unknown:"format not recognized"},
+ none:"Nothing found. Drag the file here instead.",
+ searched:(d)=>`Looked in: ${d}`,
+ uploading:"Copying…",
+ closeMsg:"You can close this window now. Reopen it to continue.",
+ rerun:"Continuing (notes that already exist are skipped).",
+ pre:"Selected file"
+}};
+let L="ko",theme="",i=0,picked=null,agreed=false,found=null,foundDir="",errMsg="",job=null,pollT=null,upPct=-1,closed=false;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nf=n=>Number(n||0).toLocaleString(L==="ko"?"ko-KR":"en-US");
+async function api(path,body){
+  const o={method:body===undefined?"GET":"POST",headers:{"X-Token":TOKEN}};
+  if(body!==undefined){o.headers["Content-Type"]="application/json";o.body=JSON.stringify(body)}
+  const r=await fetch(path,o);let j={};try{j=await r.json()}catch(e){}
+  j._status=r.status;return j;
+}
+const persist=()=>api("/api/state",{step:i,lang:L,theme:theme,zip:picked?picked.path:"",agreed:agreed}).catch(()=>{});
+function applyTheme(){if(theme)document.documentElement.setAttribute("data-theme",theme);else document.documentElement.removeAttribute("data-theme")}
+function fmtSize(b){if(!b&&b!==0)return"";return b>=1073741824?(b/1073741824).toFixed(1)+" GB":Math.round(b/1048576)+" MB"}
+function fmtDate(t){if(!t)return"";const d=new Date(t*1000);return String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function go(n){clearInterval(pollT);errMsg="";i=Math.max(0,Math.min(8,n));persist();draw();if(i===4)startRun()}
+function draw(){
+  const t=T[L],s=t.s[i];
+  $("lang").textContent=L==="ko"?"English":"한국어";$("foot").textContent=t.foot;document.documentElement.lang=L;
+  $("dots").innerHTML=t.s.map((_,k)=>`<span class="dot ${k===i?"on":k<i?"done":""}"></span>`).join("");
+  let h=`${i&&!closed?`<button class="back" type="button" data-go="${i===4?3:i-1}">${t.back}</button>`:""}<div class="step">${i+1} / 9</div><h1>${s.h}</h1><p>${s.p}</p>`;
+  if(s.promise)h+=`<div class="promise">${s.promise}</div>`;
+  if(s.path)h+=`<ol class="path">${s.path.map(x=>`<li>${x}</li>`).join("")}</ol>`;
+  if(s.tip)h+=`<div class="tip">${s.tip}</div>`;
+  if(errMsg)h+=`<div class="err" id="err">${esc(errMsg)}</div>`;
+  if(closed)h+=`<div class="promise">${t.closeMsg}</div>`;
+  if(i===3){
+    const dropTxt=upPct>=0?`${t.uploading} ${upPct}%`:(picked?`✓ ${esc(picked.name)}${picked.size?" · "+fmtSize(picked.size):""}`:s.drop);
+    h+=`<div class="drop ${picked?"ok":""}" id="drop" tabindex="0">${dropTxt}</div><input type="file" id="fi" accept=".zip,application/zip" hidden><button class="sub" type="button" id="find">${s.find}</button><div class="found" id="found">`;
+    if(found){
+      if(!found.length)h+=`<p>${t.none}</p>`;
+      h+=found.map((f,k)=>`<div class="file ${f.kind==="json"?"":"bad"}" data-k="${k}"><span>${esc(f.name)}${f.kind!=="json"?" · "+(t.sizes[f.kind]||""):""}</span><span>${fmtSize(f.size)} · ${fmtDate(f.mtime)}</span></div>`).join("");
+      h+=`<p>${t.searched(esc(foundDir))}</p>`;
+    }
+    h+=`</div>`;
+  }
+  if(i===4){h+=`<div class="bar"><i id="pb"></i></div><p id="pl"></p>`}
+  if(i===5){
+    const r=(job&&job.result)||{};const m=r.masked||{phone:0,email:0,account:0,mention:0};
+    h+=`<div class="stats">${[[r.notes,t.stats[0]],[r.taste,t.stats[1]],[r.collections,t.stats[2]],[r.nlm_files,t.stats[3]]].map(x=>`<div class="stat"><b>${nf(x[0])}</b><span>${x[1]}</span></div>`).join("")}</div><div class="promise">${esc(t.masked(m))}</div><label class="check"><input type="checkbox" id="agree" ${agreed?"checked":""}><span>${t.agree}</span></label>`;
+  }
+  const mainOff=closed||(i===3&&(!picked||upPct>=0))||(i===4&&!(job&&job.done))||(i===5&&!agreed);
+  h+=`<div class="row"><button class="main" type="button" id="main" ${mainOff?"disabled":""}>${s.main}</button></div>`;
+  if(s.sub&&!closed)h+=`<button class="sub" type="button" id="sub">${s.sub}</button>`;
+  $("card").innerHTML=h;
+  if(i===4)paintProgress();
+}
+function paintProgress(){
+  if(!$("pb")||!job)return;$("pb").style.width=(job.pct||0)+"%";
+  $("pl").textContent=job.done?T[L].doneMsg:(T[L].progress[Math.max(0,job.stage)]||"")+" · "+(job.pct||0)+"%";
+}
+async function startRun(){
+  if(!picked){go(3);return}
+  job={pct:0,stage:0,done:false};draw();
+  const r=await api("/api/run",{path:picked.path});
+  if(!r.started){
+    errMsg=(r.check&&r.check.error)||r.error||"error";i=3;draw();return;
+  }
+  api("/api/state",{out:r.out}).catch(()=>{});
+  poll();
+}
+function poll(){
+  clearInterval(pollT);
+  pollT=setInterval(async()=>{
+    const p=await api("/api/progress");job=p;
+    if(p.error){clearInterval(pollT);errMsg=p.error;i=3;persist();draw();return}
+    if(p.done){clearInterval(pollT);draw();return}
+    paintProgress();
+  },700);
+}
+async function chooseFile(path){
+  const c=await api("/api/check",{path});
+  if(!c.ok){errMsg=c.error||"";picked=null;draw();return}
+  errMsg="";picked={path:c.path,name:c.name,size:c.size};persist();draw();
+}
+function upload(file){
+  if(!file)return;
+  if(!/\.zip$/i.test(file.name)){errMsg=L==="ko"?"zip 파일만 넣을 수 있어요.":"Only .zip files are accepted.";draw();return}
+  errMsg="";upPct=0;picked=null;draw();
+  const x=new XMLHttpRequest();
+  x.open("POST","/api/upload?name="+encodeURIComponent(file.name));
+  x.setRequestHeader("X-Token",TOKEN);
+  x.upload.onprogress=e=>{if(e.lengthComputable){upPct=Math.floor(e.loaded*100/e.total);const d=$("drop");if(d)d.textContent=T[L].uploading+" "+upPct+"%"}};
+  x.onload=()=>{upPct=-1;let j={};try{j=JSON.parse(x.responseText)}catch(e){}
+    if(j.ok){picked={path:j.path,name:j.name,size:j.size};errMsg="";persist()}else{errMsg=j.error||"error"}draw()};
+  x.onerror=()=>{upPct=-1;errMsg=L==="ko"?"가져오지 못했어요. 다시 해 주세요.":"Upload failed. Please try again.";draw()};
+  x.send(file);
+}
+$("card").addEventListener("click",async e=>{
+  const f=e.target.closest(".file");
+  if(f){const x=found[+f.dataset.k];if(x&&x.kind==="json")chooseFile(x.path);else if(x){errMsg=x.error||"";draw()}return}
+  if(e.target.closest("#drop")&&upPct<0){$("fi").click();return}
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.go){go(+b.dataset.go);return}
+  if(b.id==="find"){const r=await api("/api/find",{});found=r.files||[];foundDir=r.dir||"";draw();return}
+  if(b.id==="main"){
+    if(i===1){await api("/api/open-url",{which:"meta"});return}
+    if(i===3){go(4);return}
+    if(i===6){await api("/api/open-url",{which:"notebooklm"});await api("/api/open-folder",{which:"nlm"});go(7);return}
+    if(i===8){picked=null;agreed=false;job=null;found=null;go(0);return}
+    go(i+1);return;
+  }
+  if(b.id==="sub"){
+    if(i===0)go(3);
+    else if(i===1)go(2);
+    else if(i===2){closed=true;persist();draw();await api("/api/quit",{}).catch(()=>{});try{window.close()}catch(_){}}
+    else if(i===5)api("/api/open-folder",{which:"out"});
+    else if(i===6)api("/api/open-folder",{which:"nlm"});
+    return;
+  }
+});
+$("card").addEventListener("change",e=>{
+  if(e.target.id==="agree"){agreed=e.target.checked;persist();draw()}
+  if(e.target.id==="fi"){upload(e.target.files[0])}
+});
+["dragover","dragenter"].forEach(ev=>$("card").addEventListener(ev,e=>{if(e.target.closest("#drop")){e.preventDefault();e.target.closest("#drop").classList.add("hot")}}));
+$("card").addEventListener("dragleave",e=>{const d=e.target.closest("#drop");if(d)d.classList.remove("hot")});
+$("card").addEventListener("drop",e=>{if(!e.target.closest("#drop"))return;e.preventDefault();upload(e.dataTransfer.files[0])});
+$("lang").onclick=()=>{L=L==="ko"?"en":"ko";persist();draw()};
+$("theme").onclick=()=>{theme=theme===""?"light":theme==="light"?"dark":"";applyTheme();persist()};
+async function init(){
+  const r=await api("/api/state");const st=r.state||{};
+  if(st.lang)L=st.lang;if(st.theme!==undefined)theme=st.theme||"";applyTheme();
+  agreed=!!st.agreed;
+  let step=Number.isInteger(st.step)?st.step:0;
+  if(r.preselect){
+    const c=await api("/api/check",{path:r.preselect});
+    if(c.ok){picked={path:c.path,name:c.name,size:c.size};step=3}else{errMsg=c.error||"";step=3}
+  }else if(st.zip){
+    const c=await api("/api/check",{path:st.zip});if(c.ok)picked={path:c.path,name:c.name,size:c.size};
+  }
+  if(step>=4){
+    const p=await api("/api/progress");
+    if(p.done||p.running){job=p;i=step;draw();if(i===4&&!p.done)poll();return}
+    step=3;if(picked)errMsg="";
+  }
+  i=step;draw();
+  if(!r.preselect&&st.step>=4&&picked){errMsg="";}
+}
+setInterval(()=>api("/api/ping").catch(()=>{}),15000);
+init().catch(()=>{draw()});
+</script>
+</body>
+</html>

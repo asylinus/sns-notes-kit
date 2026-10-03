@@ -27,8 +27,11 @@ Screenshots (placeholders): `docs/img/ko_01.png` ... `docs/img/ko_09.png`.
 
 ## 2. Run it (no install needed)
 
-- **Windows**: drag the zip onto `run_windows.bat`.
-- **macOS**: drag the zip onto `run_mac.command` (first time: `chmod +x run_mac.command`).
+- **Windows**: double-click `run_windows.bat` (or drag the zip onto it to pre-select it). A 9-step wizard opens in your browser.
+- **macOS**: same with `run_mac.command` (first time: `chmod +x run_mac.command`).
+- Command line: `python -m snsnotes wizard [--zip export.zip] [--no-browser] [--port N]`.
+
+The wizard binds to 127.0.0.1 only, makes no outgoing connections (no web fonts either), resumes where you left off (`~/.snsnotes/state.json`), and **stops by itself when you close the browser tab** (the page pings every 15 s; 45 s of silence ends it). Nothing runs in the background. Experimental NotebookLM automation: later.
 
 Results appear next to the zip in `<zipname>_snsnotes/`: `notes/`, `nlm/`, `scan_report.md`.
 

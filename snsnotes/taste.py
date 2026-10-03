@@ -322,12 +322,14 @@ def _q(v) -> str:
     return json.dumps(v, ensure_ascii=False)
 
 
-def write_taste(recs: list[Taste], out: Path, do_redact=True) -> tuple[int, int]:
+def write_taste(recs: list[Taste], out: Path, do_redact=True, progress=None) -> tuple[int, int]:
     out = Path(out)
     existing = {p.stem.rsplit("_", 1)[-1] for p in out.rglob("*.md")} if out.exists() else set()
     written = skipped = 0
     known = known_usernames(recs) if do_redact else frozenset()
-    for r in recs:
+    for n, r in enumerate(recs):
+        if progress and n % 2000 == 0:
+            progress(n, len(recs))
         if r.sha8 in existing:
             skipped += 1
             continue

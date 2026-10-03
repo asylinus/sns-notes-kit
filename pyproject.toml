@@ -20,3 +20,6 @@ snsnotes = "snsnotes.cli:main"
 
 [tool.setuptools]
 packages = ["snsnotes"]
+
+[tool.setuptools.package-data]
+snsnotes = ["wizard_ui.html"]

@@ -75,6 +75,10 @@ def parser():
     _common(p)
     _redact_flag(p)
     p.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS, help="max chars per file")
+    p = sub.add_parser("wizard", help="step-by-step browser wizard (local only, closes with the tab)")
+    p.add_argument("--no-browser", action="store_true", help="do not open the browser automatically")
+    p.add_argument("--port", type=int, default=0, help="fixed port (default: random free port)")
+    p.add_argument("--zip", default="", help="pre-select this export zip")
     p = sub.add_parser("taste", help="notes for saved posts, likes and collections (other people's names are hashed)")
     _common(p)
     _redact_flag(p)
@@ -137,6 +141,10 @@ def _taste(a, strict=False):
 
 
 def _run(a) -> int:
+    if a.cmd == "wizard":
+        from .wizard import serve
+
+        return serve(port=a.port, open_browser=not a.no_browser, zip_path=a.zip)
     redact = not getattr(a, "no_redact", False)
     use_taste = a.cmd == "taste" or (a.cmd in ("all", "scan") and not getattr(a, "no_taste", False))
     if a.cmd == "taste":
