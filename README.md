@@ -1,5 +1,7 @@
 # snsnotes
 
+<img src="docs/img/wizard_1_start.png" width="320"> <img src="docs/img/wizard_6_check.png" width="320">
+
 Turn **your own** Instagram / Threads data export into:
 
 - one Markdown note per post (frontmatter + original text), and
@@ -23,7 +25,6 @@ Instagram web (checked on the Korean UI; English names in parentheses are the us
 
 If you export as HTML by mistake, snsnotes stops with a message asking you to export again as JSON.
 
-Screenshots (placeholders): `docs/img/ko_01.png` ... `docs/img/ko_09.png`.
 
 ## 2. Run it (no install needed)
 

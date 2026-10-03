@@ -1,5 +1,7 @@
 # 내 인스타·스레드 글을 노트로 만들기 (snsnotes)
 
+<img src="docs/img/cover.png" width="420">
+
 내 인스타그램 / 스레드 기록을 **내 컴퓨터 안에서만** 정리해 줍니다.
 
 - 내가 쓴 글: 글 하나당 메모 파일 하나 (날짜·원문 포함)
@@ -16,7 +18,6 @@
 1. https://www.python.org/downloads/ 에서 파이썬을 받아 설치합니다 (3.10 이상).
 2. **Windows**: 설치 첫 화면 아래의 **"Add python.exe to PATH"** 에 꼭 체크하세요.
 
-![스크린샷 자리: 파이썬 설치 화면](docs/img/00_python.png)
 
 이미 설치되어 있다면 건너뛰세요.
 
@@ -41,15 +42,6 @@
 
 > 형식을 HTML로 두고 내보냈다면 이 도구가 읽지 못합니다. 실행하면 "JSON으로 다시 내보내세요"라는 안내가 나옵니다.
 
-![스크린샷 자리: 왼쪽 메뉴 더 보기 > 설정](docs/img/ko_01.png)
-![스크린샷 자리: 설정 > 계정 센터](docs/img/ko_02.png)
-![스크린샷 자리: 계정 설정 > 내 정보 및 권한](docs/img/ko_03.png)
-![스크린샷 자리: 내 정보 내보내기](docs/img/ko_04.png)
-![스크린샷 자리: 내보내기 만들기](docs/img/ko_05.png)
-![스크린샷 자리: 프로필 선택](docs/img/ko_06.png)
-![스크린샷 자리: 내보낼 위치 선택 > 기기로 내보내기](docs/img/ko_07.png)
-![스크린샷 자리: 내보내기 확인 (기간 전체 기간, 형식 JSON)](docs/img/ko_08.png)
-![스크린샷 자리: 내보내기 시작 후 안내 화면](docs/img/ko_09.png)
 
 ## 3단계. 실행하기
 
@@ -76,7 +68,7 @@
 1. 처음 한 번, 터미널에서 `chmod +x run_mac.command` 를 실행합니다. ("확인되지 않은 개발자" 경고가 뜨면 파일을 우클릭 > 열기)
 2. `run_mac.command` 를 더블클릭하면 마법사가 열립니다. zip 파일을 끌어다 놓으면 그 파일이 미리 선택됩니다.
 
-![스크린샷 자리: zip을 bat 파일 위로 끌어다 놓기](docs/img/03_drag.png)
+<p><img src="docs/img/wizard_1_start.png" width="32%"> <img src="docs/img/wizard_4_zip.png" width="32%"> <img src="docs/img/wizard_6_check.png" width="32%"></p>
 
 ## 4단계. 결과 확인
 
