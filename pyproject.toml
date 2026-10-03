@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snsnotes"
+version = "0.1.0"
+description = "Turn your own Instagram/Threads data export into personal markdown notes and NotebookLM-ready bundles. Local only."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "[OWNER NAME]" }]
+dependencies = []
+
+[project.optional-dependencies]
+tz = ["tzdata; platform_system == 'Windows'"]
+
+[project.scripts]
+snsnotes = "snsnotes.cli:main"
+
+[tool.setuptools]
+packages = ["snsnotes"]
