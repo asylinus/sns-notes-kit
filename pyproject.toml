@@ -9,7 +9,7 @@ description = "Turn your own Instagram/Threads data export into personal markdow
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "[OWNER NAME]" }]
+authors = [{ name = "Sannyasin" }]
 dependencies = []
 
 [project.optional-dependencies]
